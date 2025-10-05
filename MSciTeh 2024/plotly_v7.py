@@ -9,26 +9,27 @@ import psutil
 
 app = dash.Dash(__name__)
 
-# Function to read and parse the data from test.txt
+# Citeste si parseaza datele din fisier
 def load_data(file_path='testplumb2.txt'):
     dates = []
     values = []
     with open(file_path, 'r') as file:
         for line in file:
-            # Split the line based on the expected format
+            # Sparge fiecare linie in 2
             date_str, value_str = line.split(' - Pulses_per_10s: ')
-            # Convert date string to datetime object
+            # Converteste stringul cu data in obiect
             date = datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S')
-            # Convert the value to integer
+            # Converteste valorile in int-uri
             value = int(value_str.strip())
+            # Updateaza vectorii
             dates.append(date)
             values.append(value)
     
-    # Create a DataFrame
+    # Creeaza un DataFrame
     df = pd.DataFrame({'Date': dates, 'Value': values})
     return df
 
-# Function to aggregate the data by summing up every n points
+# Functia de agregare a datelor ptin insumarea fiecaror n puncte
 def aggregate_data(df, n):
     aggregated_dates = df['Date'][::n].reset_index(drop=True)
     aggregated_values = df['Value'].rolling(window=n).sum()[n-1::n].reset_index(drop=True)
@@ -36,7 +37,7 @@ def aggregate_data(df, n):
     aggregated_df = pd.DataFrame({'Date': aggregated_dates, 'Value': aggregated_values})
     return aggregated_df
 
-# Function to check if save_serial.py is running
+# Functia care verifica daca save_serial.py ruleaza
 def is_script_running(script_name='save_serial.py'):
     for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
         cmdline = proc.info['cmdline']
@@ -44,7 +45,7 @@ def is_script_running(script_name='save_serial.py'):
             return True
     return False
 
-# Layout of the Dash app
+# Layoutul pe intefata Dash
 app.layout = html.Div([
     dcc.DatePickerRange(
         id='date-picker-range',
@@ -85,7 +86,7 @@ app.layout = html.Div([
     dcc.Graph(id='time-series-plot')
 ])
 
-# Callback to update the plot based on the number of points to sum and the selected time interval
+# Callback pentru a updata plotul cu noii parametri
 @app.callback(
     Output('time-series-plot', 'figure'),
     Input('update-plot-button', 'n_clicks'),
@@ -102,20 +103,20 @@ def update_graph(n_clicks, n_points, start_date, end_date, start_time, end_time)
     if n_points is None or n_points < 1:
         n_points = 1
 
-    # Load the data again to include any new entries
+    # Incarca datele pentru a include linii noi
     df = load_data()
 
-    # Combine the date and time inputs into datetime objects
+    # Combina imputurile de timp si data in obiecte
     start_datetime = datetime.strptime(f'{start_date} {start_time}', '%Y-%m-%d %H:%M')
     end_datetime = datetime.strptime(f'{end_date} {end_time}', '%Y-%m-%d %H:%M')
 
-    # Filter the DataFrame for the selected time interval
+    # Filtreaza DataFrame-ul pentru intervalul dorit
     df_filtered = df[(df['Date'] >= start_datetime) & (df['Date'] <= end_datetime)]
 
-    # Aggregate the data by summing up every n_points
+    # Agregheaza datele pentru a insuma fiecare n puncte
     aggregated_df = aggregate_data(df_filtered, n_points)
     
-    # Create a line plot
+    # Creeaza plotul
     fig = go.Figure(data=[go.Scatter(x=aggregated_df['Date'], y=aggregated_df['Value'], mode='lines+markers')])
 
     fig.update_layout(
@@ -128,7 +129,7 @@ def update_graph(n_clicks, n_points, start_date, end_date, start_time, end_time)
 
     return fig
 
-# Combined callback to manage script status (start/stop) and display the status
+# Callback pentru a manageria statutul scriptului save_serial.py
 @app.callback(
     Output('script-status', 'children'),
     [Input('start-script-button', 'n_clicks'),
